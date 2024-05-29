@@ -1790,7 +1790,6 @@ impl Cpu {
                             self.write(addr, self.xregs.read(rs2), WORD)?;
                             self.xregs.write(rd, 0);
                         } else {
-                            self.reservation_set.retain(|&x| x != addr);
                             self.xregs.write(rd, 1);
                         };
                     }
@@ -1811,7 +1810,6 @@ impl Cpu {
                             self.write(addr, self.xregs.read(rs2), DOUBLEWORD)?;
                             self.xregs.write(rd, 0);
                         } else {
-                            self.reservation_set.retain(|&x| x != addr);
                             self.xregs.write(rd, 1);
                         }
                     }
