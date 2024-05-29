@@ -2979,7 +2979,7 @@ impl Cpu {
                                 self.debug(inst, "fcvt.l.s");
 
                                 self.xregs
-                                    .write(rd, (self.fregs.read(rs1) as f32).round() as u64);
+                                    .write(rd, (self.fregs.read(rs1) as f32).round() as i64 as u64);
                             }
                             0x3 => {
                                 // fcvt.lu.s
@@ -3019,7 +3019,8 @@ impl Cpu {
                                 inst_count!(self, "fcvt.l.d");
                                 self.debug(inst, "fcvt.l.d");
 
-                                self.xregs.write(rd, self.fregs.read(rs1).round() as u64);
+                                self.xregs
+                                    .write(rd, self.fregs.read(rs1).round() as i64 as u64);
                             }
                             0x3 => {
                                 // fcvt.lu.d
@@ -3056,7 +3057,8 @@ impl Cpu {
                                 inst_count!(self, "fcvt.s.l");
                                 self.debug(inst, "fcvt.s.l");
 
-                                self.fregs.write(rd, (self.xregs.read(rs1) as f32) as f64);
+                                self.fregs
+                                    .write(rd, (self.xregs.read(rs1) as i64 as f32) as f64);
                             }
                             0x3 => {
                                 // fcvt.s.lu
@@ -3092,7 +3094,7 @@ impl Cpu {
                                 inst_count!(self, "fcvt.d.l");
                                 self.debug(inst, "fcvt.d.l");
 
-                                self.fregs.write(rd, self.xregs.read(rs1) as f64);
+                                self.fregs.write(rd, self.xregs.read(rs1) as i64 as f64);
                             }
                             0x3 => {
                                 // fcvt.d.lu

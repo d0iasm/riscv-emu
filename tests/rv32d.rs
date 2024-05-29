@@ -380,7 +380,7 @@ fn fcvtdw_rd_rs1_rs2() {
     emu.cpu.xregs.write(31, -4 as i64 as u64);
 
     let data = vec![
-        0xd3, 0x8f, 0x0f, 0xd2, // fcvt.d.w x31, f31 (rm: 000)
+        0xd3, 0x8f, 0x0f, 0xd2, // fcvt.d.w f31, x31 (rm: 000)
     ];
     let expected_xregs = helper::create_xregs(vec![(31, -4 as i64 as u64)]);
     let expected_fregs = helper::create_fregs(vec![(31, -4.0)]);
@@ -395,10 +395,40 @@ fn fcvtdwu_rd_rs1_rs2() {
     emu.cpu.xregs.write(31, 4);
 
     let data = vec![
-        0xd3, 0x8f, 0x1f, 0xd2, // fcvt.d.wu x31, f31 (rm: 000)
+        0xd3, 0x8f, 0x1f, 0xd2, // fcvt.d.wu f31, x31 (rm: 000)
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 4)]);
     let expected_fregs = helper::create_fregs(vec![(31, 4.0)]);
+
+    helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
+}
+
+#[test]
+fn fcvtld_rd_fs1() {
+    let mut emu = Emulator::new();
+
+    emu.cpu.fregs.write(31, -1.0);
+
+    let data = vec![
+        0xd3, 0xff, 0x2f, 0xc2, // fcvt.l.d x31,f31 (rm: 000)
+    ];
+    let expected_xregs = helper::create_xregs(vec![(31, -1i64 as u64)]);
+    let expected_fregs = helper::create_fregs(vec![(31, -1.0)]);
+
+    helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
+}
+
+#[test]
+fn fcvtdl_frd_rs1() {
+    let mut emu = Emulator::new();
+
+    emu.cpu.xregs.write(31, -1i64 as u64);
+
+    let data = vec![
+        0xd3, 0xff, 0x2f, 0xd2, // fcvt.d.l f31,x31 (rm: 000)
+    ];
+    let expected_xregs = helper::create_xregs(vec![(31, -1i64 as u64)]);
+    let expected_fregs = helper::create_fregs(vec![(31, -1.0)]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
