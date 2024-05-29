@@ -259,7 +259,7 @@ fn fcvtsd_rd_rs1_rs2() {
         0xd3, 0x0f, 0x1f, 0x40, // fcvt.s.d f31, f30
     ];
     let expected_xregs = helper::create_xregs(vec![]);
-    let expected_fregs = helper::create_fregs(vec![(31, -1.2), (30, -1.2)]);
+    let expected_fregs = helper::create_fregs(vec![(31, helper::nan_box(-1.2)), (30, -1.2)]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }

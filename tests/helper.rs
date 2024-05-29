@@ -59,3 +59,8 @@ pub fn run(
         );
     }
 }
+
+pub fn nan_box(num: f32) -> f64 {
+    let NAN_MASK = !(u32::MAX as u64);
+    f64::from_bits(NAN_MASK | (num.to_bits() as u64))
+}
