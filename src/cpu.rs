@@ -159,9 +159,34 @@ impl FRegisters {
         self.fregs[index as usize]
     }
 
+    /// read a single precision float a register,
+    /// expecting nanboxing according to the spec.
+    ///   21.2. NaN Boxing of Narrower Values
+    /// "[if] n<FLEN, check if the input operands are correctly NaN-boxed, i.e., all
+    /// upper FLEN-n bits are 1. If so, the n least-significant bits of the input are used as the input value,
+    /// otherwise the input value is treated as an n-bit canonical NaN."
+    pub fn read_nanboxed(&self, index: u64) -> f32 {
+        let bits = self.read(index).to_bits();
+        if !bits <= u32::MAX as u64 {
+            f32::from_bits(bits as u32)
+        } else {
+            f32::NAN
+        }
+    }
+
     /// Write the value to a register.
     pub fn write(&mut self, index: u64, value: f64) {
         self.fregs[index as usize] = value;
+    }
+
+    /// Write the single precision number to a register.
+    /// nan boxing them according to the spec
+    ///   21.2. NaN Boxing of Narrower Values
+    /// "Any operation that writes a narrower result to an 'f' register must write all 1s to the uppermost
+    /// FLEN-n bits to yield a legal NaN-boxedvalue."
+    pub fn write_nanboxed(&mut self, index: u64, value: f32) {
+        const NAN_MASK: u64 = !(u32::MAX as u64);
+        self.write(index, f64::from_bits(NAN_MASK | value.to_bits() as u64));
     }
 }
 
@@ -2827,14 +2852,14 @@ impl Cpu {
                         inst_count!(self, "fcvt.s.d");
                         self.debug(inst, "fcvt.s.d");
 
-                        self.fregs.write(rd, self.fregs.read(rs1));
+                        self.fregs.write_nanboxed(rd, self.fregs.read(rs1) as f32);
                     }
                     0x21 => {
                         // fcvt.d.s
                         inst_count!(self, "fcvt.d.s");
                         self.debug(inst, "fcvt.d.s");
 
-                        self.fregs.write(rd, (self.fregs.read(rs1) as f32) as f64);
+                        self.fregs.write(rd, self.fregs.read_nanboxed(rs1) as f64);
                     }
                     0x2c => {
                         // fsqrt.s
@@ -2842,7 +2867,7 @@ impl Cpu {
                         self.debug(inst, "fsqrt.s");
 
                         self.fregs
-                            .write(rd, (self.fregs.read(rs1) as f32).sqrt() as f64);
+                            .write_nanboxed(rd, self.fregs.read_nanboxed(rs1).sqrt());
                     }
                     0x2d => {
                         // fsqrt.d
