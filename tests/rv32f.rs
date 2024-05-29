@@ -179,15 +179,18 @@ fn fdivs_rd_rs1_rs2() {
 fn fsgnjs_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, -1.2);
-    emu.cpu.fregs.write(30, 4.2);
+    emu.cpu.fregs.write_nanboxed(29, -1.2);
+    emu.cpu.fregs.write_nanboxed(30, 4.2);
 
     let data = vec![
         0xd3, 0x0f, 0xdf, 0x21, // fsgnj.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![]);
-    let expected_fregs = helper::create_fregs(vec![(31, -4.2), (30, 4.2), (29, -1.2)]);
-
+     let expected_fregs = helper::create_fregs(vec![
+        (31, helper::nan_box(-4.2)),
+        (30, helper::nan_box(4.2)),
+        (29, helper::nan_box(-1.2)),
+    ]);
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
 
@@ -195,14 +198,18 @@ fn fsgnjs_rd_rs1_rs2() {
 fn fsgnjns_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, -1.2);
-    emu.cpu.fregs.write(30, 4.2);
+    emu.cpu.fregs.write_nanboxed(29, -1.2);
+    emu.cpu.fregs.write_nanboxed(30, 4.2);
 
     let data = vec![
         0xd3, 0x1f, 0xdf, 0x21, // fsgnjn.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![]);
-    let expected_fregs = helper::create_fregs(vec![(31, 4.2), (30, 4.2), (29, -1.2)]);
+    let expected_fregs = helper::create_fregs(vec![
+        (31, helper::nan_box(4.2)),
+        (30, helper::nan_box(4.2)),
+        (29, helper::nan_box(-1.2)),
+    ]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -228,14 +235,18 @@ fn fsgnjxs_rd_rs1_rs2() {
 fn fmins_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, 4.2);
-    emu.cpu.fregs.write(30, -1.2);
+    emu.cpu.fregs.write_nanboxed(29, 4.2);
+    emu.cpu.fregs.write_nanboxed(30, -1.2);
 
     let data = vec![
         0xd3, 0x0f, 0xdf, 0x29, // fmin.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![]);
-    let expected_fregs = helper::create_fregs(vec![(31, -1.2), (30, -1.2), (29, 4.2)]);
+    let expected_fregs = helper::create_fregs(vec![
+        (31, helper::nan_box(-1.2)),
+        (30, helper::nan_box(-1.2)),
+        (29, helper::nan_box(4.2)),
+    ]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -244,14 +255,18 @@ fn fmins_rd_rs1_rs2() {
 fn fmaxs_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, 4.2);
-    emu.cpu.fregs.write(30, -1.2);
+    emu.cpu.fregs.write_nanboxed(29, 4.2);
+    emu.cpu.fregs.write_nanboxed(30, -1.2);
 
     let data = vec![
         0xd3, 0x1f, 0xdf, 0x29, // fmax.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![]);
-    let expected_fregs = helper::create_fregs(vec![(31, 4.2), (30, -1.2), (29, 4.2)]);
+    let expected_fregs = helper::create_fregs(vec![
+        (31, helper::nan_box(4.2)),
+        (30, helper::nan_box(-1.2)),
+        (29, helper::nan_box(4.2)),
+    ]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -260,13 +275,16 @@ fn fmaxs_rd_rs1_rs2() {
 fn fsqrts_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(30, 4.2);
+    emu.cpu.fregs.write_nanboxed(30, 4.2);
 
     let data = vec![
         0xd3, 0x0f, 0x0f, 0x58, // fmax.s f31, f30
     ];
     let expected_xregs = helper::create_xregs(vec![]);
-    let expected_fregs = helper::create_fregs(vec![(31, 2.0493900775909424), (30, 4.2)]);
+    let expected_fregs = helper::create_fregs(vec![
+        (31, helper::nan_box(2.0493900775909424)),
+        (30, helper::nan_box(4.2)),
+    ]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -275,14 +293,15 @@ fn fsqrts_rd_rs1_rs2() {
 fn fles_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, 4.2);
-    emu.cpu.fregs.write(30, 4.2);
+    emu.cpu.fregs.write_nanboxed(29, 4.2);
+    emu.cpu.fregs.write_nanboxed(30, 4.2);
 
     let data = vec![
         0xd3, 0x0f, 0xdf, 0xa1, // fle.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 1)]);
-    let expected_fregs = helper::create_fregs(vec![(30, 4.2), (29, 4.2)]);
+    let expected_fregs =
+        helper::create_fregs(vec![(30, helper::nan_box(4.2)), (29, helper::nan_box(4.2))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -291,14 +310,17 @@ fn fles_rd_rs1_rs2() {
 fn flts_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, 4.2);
-    emu.cpu.fregs.write(30, -1.2);
+    emu.cpu.fregs.write_nanboxed(29, 4.2);
+    emu.cpu.fregs.write_nanboxed(30, -1.2);
 
     let data = vec![
         0xd3, 0x1f, 0xdf, 0xa1, // flt.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 1)]);
-    let expected_fregs = helper::create_fregs(vec![(30, -1.2), (29, 4.2)]);
+    let expected_fregs = helper::create_fregs(vec![
+        (30, helper::nan_box(-1.2)),
+        (29, helper::nan_box(4.2)),
+    ]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -307,14 +329,15 @@ fn flts_rd_rs1_rs2() {
 fn feqs_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(29, 4.2);
-    emu.cpu.fregs.write(30, 4.2);
+    emu.cpu.fregs.write_nanboxed(29, 4.2);
+    emu.cpu.fregs.write_nanboxed(30, 4.2);
 
     let data = vec![
         0xd3, 0x2f, 0xdf, 0xa1, // feq.s f31, f30, f29
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 1)]);
-    let expected_fregs = helper::create_fregs(vec![(30, 4.2), (29, 4.2)]);
+    let expected_fregs =
+        helper::create_fregs(vec![(30, helper::nan_box(4.2)), (29, helper::nan_box(4.2))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -323,13 +346,13 @@ fn feqs_rd_rs1_rs2() {
 fn fcvtws_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(31, -4.2);
+    emu.cpu.fregs.write_nanboxed(31, -4.2);
 
     let data = vec![
         0xd3, 0x8f, 0x0f, 0xc0, // fcvt.w.s x31, f31 (rm: 000)
     ];
     let expected_xregs = helper::create_xregs(vec![(31, -4 as i64 as u64)]);
-    let expected_fregs = helper::create_fregs(vec![(31, -4.2)]);
+    let expected_fregs = helper::create_fregs(vec![(31, helper::nan_box(-4.2))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -338,13 +361,13 @@ fn fcvtws_rd_rs1_rs2() {
 fn fcvtwus_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(31, 4.2);
+    emu.cpu.fregs.write_nanboxed(31, 4.2);
 
     let data = vec![
         0xd3, 0x8f, 0x1f, 0xc0, // fcvt.wu.s x31, f31 (rm: 000)
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 4)]);
-    let expected_fregs = helper::create_fregs(vec![(31, 4.2)]);
+    let expected_fregs = helper::create_fregs(vec![(31, helper::nan_box(4.2))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -359,7 +382,7 @@ fn fcvtsw_rd_rs1_rs2() {
         0xd3, 0x8f, 0x0f, 0xd0, // fcvt.s.w x31, f31 (rm: 000)
     ];
     let expected_xregs = helper::create_xregs(vec![(31, -4 as i64 as u64)]);
-    let expected_fregs = helper::create_fregs(vec![(31, -4.0)]);
+    let expected_fregs = helper::create_fregs(vec![(31, helper::nan_box(-4.0))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -374,7 +397,7 @@ fn fcvtswu_rd_rs1_rs2() {
         0xd3, 0x8f, 0x1f, 0xd0, // fcvt.s.wu x31, f31 (rm: 000)
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 4)]);
-    let expected_fregs = helper::create_fregs(vec![(31, 4.0)]);
+    let expected_fregs = helper::create_fregs(vec![(31, helper::nan_box(4.0))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }
@@ -398,13 +421,13 @@ fn fmvxw_rd_rs1_rs2() {
 fn fclasss_rd_rs1_rs2() {
     let mut emu = Emulator::new();
 
-    emu.cpu.fregs.write(31, std::f64::INFINITY);
+    emu.cpu.fregs.write_nanboxed(31, std::f32::INFINITY);
 
     let data = vec![
         0xd3, 0x9f, 0x0f, 0xe0, // fclass.s x31, f31
     ];
     let expected_xregs = helper::create_xregs(vec![(31, 7)]);
-    let expected_fregs = helper::create_fregs(vec![(31, f64::INFINITY)]);
+    let expected_fregs = helper::create_fregs(vec![(31, helper::nan_box(std::f32::INFINITY))]);
 
     helper::run(&mut emu, data, &expected_xregs, &expected_fregs);
 }

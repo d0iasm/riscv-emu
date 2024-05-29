@@ -159,9 +159,34 @@ impl FRegisters {
         self.fregs[index as usize]
     }
 
+    /// read a single precision float a register,
+    /// expecting nanboxing according to the spec.
+    ///   21.2. NaN Boxing of Narrower Values
+    /// "[if] n<FLEN, check if the input operands are correctly NaN-boxed, i.e., all
+    /// upper FLEN-n bits are 1. If so, the n least-significant bits of the input are used as the input value,
+    /// otherwise the input value is treated as an n-bit canonical NaN."
+    pub fn read_nanboxed(&self, index: u64) -> f32 {
+        let bits = self.read(index).to_bits();
+        if !bits <= u32::MAX as u64 {
+            f32::from_bits(bits as u32)
+        } else {
+            f32::NAN
+        }
+    }
+
     /// Write the value to a register.
     pub fn write(&mut self, index: u64, value: f64) {
         self.fregs[index as usize] = value;
+    }
+
+    /// Write the single precision number to a register.
+    /// nan boxing them according to the spec
+    ///   21.2. NaN Boxing of Narrower Values
+    /// "Any operation that writes a narrower result to an 'f' register must write all 1s to the uppermost
+    /// FLEN-n bits to yield a legal NaN-boxedvalue."
+    pub fn write_nanboxed(&mut self, index: u64, value: f32) {
+        const NAN_MASK: u64 = !(u32::MAX as u64);
+        self.write(index, f64::from_bits(NAN_MASK | value.to_bits() as u64));
     }
 }
 
@@ -1790,7 +1815,6 @@ impl Cpu {
                             self.write(addr, self.xregs.read(rs2), WORD)?;
                             self.xregs.write(rd, 0);
                         } else {
-                            self.reservation_set.retain(|&x| x != addr);
                             self.xregs.write(rd, 1);
                         };
                     }
@@ -1811,7 +1835,6 @@ impl Cpu {
                             self.write(addr, self.xregs.read(rs2), DOUBLEWORD)?;
                             self.xregs.write(rd, 0);
                         } else {
-                            self.reservation_set.retain(|&x| x != addr);
                             self.xregs.write(rd, 1);
                         }
                     }
@@ -2477,11 +2500,12 @@ impl Cpu {
                         inst_count!(self, "fmadd.s");
                         self.debug(inst, "fmadd.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (self.fregs.read(rs1) as f32)
-                                .mul_add(self.fregs.read(rs2) as f32, self.fregs.read(rs3) as f32)
-                                as f64,
+                            (self.fregs.read_nanboxed(rs1)).mul_add(
+                                self.fregs.read_nanboxed(rs2) ,
+                                self.fregs.read_nanboxed(rs3) ,
+                            ),
                         );
                     }
                     0x1 => {
@@ -2512,11 +2536,12 @@ impl Cpu {
                         inst_count!(self, "fmsub.s");
                         self.debug(inst, "fmsub.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (self.fregs.read(rs1) as f32)
-                                .mul_add(self.fregs.read(rs2) as f32, -self.fregs.read(rs3) as f32)
-                                as f64,
+                            self.fregs.read_nanboxed(rs1).mul_add(
+                                self.fregs.read_nanboxed(rs2),
+                                -self.fregs.read_nanboxed(rs3),
+                            ),
                         );
                     }
                     0x1 => {
@@ -2547,11 +2572,12 @@ impl Cpu {
                         inst_count!(self, "fnmadd.s");
                         self.debug(inst, "fnmadd.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (-self.fregs.read(rs1) as f32)
-                                .mul_add(self.fregs.read(rs2) as f32, self.fregs.read(rs3) as f32)
-                                as f64,
+                            (-self.fregs.read_nanboxed(rs1)).mul_add(
+                                self.fregs.read_nanboxed(rs2),
+                                self.fregs.read_nanboxed(rs3),
+                            ),
                         );
                     }
                     0x1 => {
@@ -2581,11 +2607,12 @@ impl Cpu {
                         inst_count!(self, "fnmsub.s");
                         self.debug(inst, "fnmsub.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (-self.fregs.read(rs1) as f32)
-                                .mul_add(self.fregs.read(rs2) as f32, -self.fregs.read(rs3) as f32)
-                                as f64,
+                            (-self.fregs.read_nanboxed(rs1)).mul_add(
+                                self.fregs.read_nanboxed(rs2),
+                                -self.fregs.read_nanboxed(rs3),
+                            ),
                         );
                     }
                     0x1 => {
@@ -2607,7 +2634,6 @@ impl Cpu {
             0x53 => {
                 // RV32F and RV64F
                 // TODO: support the rounding mode encoding (rm).
-                // TODO: NaN Boxing of Narrower Values (Spec 12.2).
                 // TODO: set exception flags.
 
                 /*
@@ -2639,9 +2665,9 @@ impl Cpu {
                         inst_count!(self, "fadd.s");
                         self.debug(inst, "fadd.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (self.fregs.read(rs1) as f32 + self.fregs.read(rs2) as f32) as f64,
+                            self.fregs.read_nanboxed(rs1) + self.fregs.read_nanboxed(rs2),
                         )
                     }
                     0x01 => {
@@ -2657,9 +2683,9 @@ impl Cpu {
                         inst_count!(self, "fsub.s");
                         self.debug(inst, "fsub.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (self.fregs.read(rs1) as f32 - self.fregs.read(rs2) as f32) as f64,
+                            self.fregs.read_nanboxed(rs1) - self.fregs.read_nanboxed(rs2),
                         )
                     }
                     0x05 => {
@@ -2675,9 +2701,9 @@ impl Cpu {
                         inst_count!(self, "fmul.s");
                         self.debug(inst, "fmul.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (self.fregs.read(rs1) as f32 * self.fregs.read(rs2) as f32) as f64,
+                            self.fregs.read_nanboxed(rs1) * self.fregs.read_nanboxed(rs2),
                         )
                     }
                     0x09 => {
@@ -2693,9 +2719,9 @@ impl Cpu {
                         inst_count!(self, "fdiv.s");
                         self.debug(inst, "fdiv.s");
 
-                        self.fregs.write(
+                        self.fregs.write_nanboxed(
                             rd,
-                            (self.fregs.read(rs1) as f32 / self.fregs.read(rs2) as f32) as f64,
+                            self.fregs.read_nanboxed(rs1) / self.fregs.read_nanboxed(rs2),
                         )
                     }
                     0x0d => {
@@ -2713,17 +2739,23 @@ impl Cpu {
                                 inst_count!(self, "fsgnj.s");
                                 self.debug(inst, "fsgnj.s");
 
-                                self.fregs
-                                    .write(rd, self.fregs.read(rs1).copysign(self.fregs.read(rs2)));
+                                self.fregs.write_nanboxed(
+                                    rd,
+                                    self.fregs
+                                        .read_nanboxed(rs1)
+                                        .copysign(self.fregs.read_nanboxed(rs2)),
+                                );
                             }
                             0x1 => {
                                 // fsgnjn.s
                                 inst_count!(self, "fsgnjn.s");
                                 self.debug(inst, "fsgnjn.s");
 
-                                self.fregs.write(
+                                self.fregs.write_nanboxed(
                                     rd,
-                                    self.fregs.read(rs1).copysign(-self.fregs.read(rs2)),
+                                    self.fregs
+                                        .read_nanboxed(rs1)
+                                        .copysign(-self.fregs.read_nanboxed(rs2)),
                                 );
                             }
                             0x2 => {
@@ -2731,11 +2763,11 @@ impl Cpu {
                                 inst_count!(self, "fsgnjx.s");
                                 self.debug(inst, "fsgnjx.s");
 
-                                let sign1 = (self.fregs.read(rs1) as f32).to_bits() & 0x80000000;
-                                let sign2 = (self.fregs.read(rs2) as f32).to_bits() & 0x80000000;
-                                let other = (self.fregs.read(rs1) as f32).to_bits() & 0x7fffffff;
+                                let sign1 = self.fregs.read_nanboxed(rs1).to_bits() & 0x80000000;
+                                let sign2 = self.fregs.read_nanboxed(rs2).to_bits() & 0x80000000;
+                                let other = self.fregs.read_nanboxed(rs1).to_bits() & 0x7fffffff;
                                 self.fregs
-                                    .write(rd, f32::from_bits((sign1 ^ sign2) | other) as f64);
+                                    .write_nanboxed(rd, f32::from_bits((sign1 ^ sign2) | other));
                             }
                             _ => {
                                 return Err(Exception::IllegalInstruction(inst));
@@ -2785,16 +2817,24 @@ impl Cpu {
                                 inst_count!(self, "fmin.s");
                                 self.debug(inst, "fmin.s");
 
-                                self.fregs
-                                    .write(rd, self.fregs.read(rs1).min(self.fregs.read(rs2)));
+                                self.fregs.write_nanboxed(
+                                    rd,
+                                    self.fregs
+                                        .read_nanboxed(rs1)
+                                        .min(self.fregs.read_nanboxed(rs2)),
+                                );
                             }
                             0x1 => {
                                 // fmax.s
                                 inst_count!(self, "fmax.s");
                                 self.debug(inst, "fmax.s");
 
-                                self.fregs
-                                    .write(rd, self.fregs.read(rs1).max(self.fregs.read(rs2)));
+                                self.fregs.write_nanboxed(
+                                    rd,
+                                    self.fregs
+                                        .read_nanboxed(rs1)
+                                        .max(self.fregs.read_nanboxed(rs2)),
+                                );
                             }
                             _ => {
                                 return Err(Exception::IllegalInstruction(inst));
@@ -2829,14 +2869,14 @@ impl Cpu {
                         inst_count!(self, "fcvt.s.d");
                         self.debug(inst, "fcvt.s.d");
 
-                        self.fregs.write(rd, self.fregs.read(rs1));
+                        self.fregs.write_nanboxed(rd, self.fregs.read(rs1) as f32);
                     }
                     0x21 => {
                         // fcvt.d.s
                         inst_count!(self, "fcvt.d.s");
                         self.debug(inst, "fcvt.d.s");
 
-                        self.fregs.write(rd, (self.fregs.read(rs1) as f32) as f64);
+                        self.fregs.write(rd, self.fregs.read_nanboxed(rs1) as f64);
                     }
                     0x2c => {
                         // fsqrt.s
@@ -2844,7 +2884,7 @@ impl Cpu {
                         self.debug(inst, "fsqrt.s");
 
                         self.fregs
-                            .write(rd, (self.fregs.read(rs1) as f32).sqrt() as f64);
+                            .write_nanboxed(rd, self.fregs.read_nanboxed(rs1).sqrt());
                     }
                     0x2d => {
                         // fsqrt.d
@@ -2862,7 +2902,9 @@ impl Cpu {
 
                                 self.xregs.write(
                                     rd,
-                                    if self.fregs.read(rs1) <= self.fregs.read(rs2) {
+                                    if self.fregs.read_nanboxed(rs1)
+                                        <= self.fregs.read_nanboxed(rs2)
+                                    {
                                         1
                                     } else {
                                         0
@@ -2876,7 +2918,8 @@ impl Cpu {
 
                                 self.xregs.write(
                                     rd,
-                                    if self.fregs.read(rs1) < self.fregs.read(rs2) {
+                                    if self.fregs.read_nanboxed(rs1) < self.fregs.read_nanboxed(rs2)
+                                    {
                                         1
                                     } else {
                                         0
@@ -2890,7 +2933,9 @@ impl Cpu {
 
                                 self.xregs.write(
                                     rd,
-                                    if self.fregs.read(rs1) == self.fregs.read(rs2) {
+                                    if self.fregs.read_nanboxed(rs1)
+                                        == self.fregs.read_nanboxed(rs2)
+                                    {
                                         1
                                     } else {
                                         0
@@ -2960,7 +3005,7 @@ impl Cpu {
 
                                 self.xregs.write(
                                     rd,
-                                    ((self.fregs.read(rs1) as f32).round() as i32) as u64,
+                                    (self.fregs.read_nanboxed(rs1).round() as i32) as u64,
                                 );
                             }
                             0x1 => {
@@ -2970,7 +3015,7 @@ impl Cpu {
 
                                 self.xregs.write(
                                     rd,
-                                    (((self.fregs.read(rs1) as f32).round() as u32) as i32) as u64,
+                                    ((self.fregs.read_nanboxed(rs1).round() as u32) as i32) as u64,
                                 );
                             }
                             0x2 => {
@@ -2979,7 +3024,7 @@ impl Cpu {
                                 self.debug(inst, "fcvt.l.s");
 
                                 self.xregs
-                                    .write(rd, (self.fregs.read(rs1) as f32).round() as u64);
+                                    .write(rd, self.fregs.read_nanboxed(rs1).round() as u64);
                             }
                             0x3 => {
                                 // fcvt.lu.s
@@ -2987,7 +3032,7 @@ impl Cpu {
                                 self.debug(inst, "fcvt.lu.s");
 
                                 self.xregs
-                                    .write(rd, (self.fregs.read(rs1) as f32).round() as u64);
+                                    .write(rd, self.fregs.read_nanboxed(rs1).round() as u64);
                             }
                             _ => {
                                 return Err(Exception::IllegalInstruction(inst));
@@ -3041,7 +3086,7 @@ impl Cpu {
                                 self.debug(inst, "fcvt.s.w");
 
                                 self.fregs
-                                    .write(rd, ((self.xregs.read(rs1) as i32) as f32) as f64);
+                                    .write_nanboxed(rd, (self.xregs.read(rs1) as i32) as f32);
                             }
                             0x1 => {
                                 // fcvt.s.wu
@@ -3049,14 +3094,15 @@ impl Cpu {
                                 self.debug(inst, "fcvt.s.wu");
 
                                 self.fregs
-                                    .write(rd, ((self.xregs.read(rs1) as u32) as f32) as f64);
+                                    .write_nanboxed(rd, (self.xregs.read(rs1) as u32) as f32);
                             }
                             0x2 => {
                                 // fcvt.s.l
                                 inst_count!(self, "fcvt.s.l");
                                 self.debug(inst, "fcvt.s.l");
 
-                                self.fregs.write(rd, (self.xregs.read(rs1) as f32) as f64);
+                                self.fregs
+                                    .write_nanboxed(rd, self.xregs.read(rs1) as i64 as f32);
                             }
                             0x3 => {
                                 // fcvt.s.lu
@@ -3064,7 +3110,7 @@ impl Cpu {
                                 self.debug(inst, "fcvt.s.lu");
 
                                 self.fregs
-                                    .write(rd, ((self.xregs.read(rs1) as u64) as f32) as f64);
+                                    .write_nanboxed(rd, (self.xregs.read(rs1) as u64) as f32);
                             }
                             _ => {
                                 return Err(Exception::IllegalInstruction(inst));
@@ -3124,7 +3170,7 @@ impl Cpu {
                                 inst_count!(self, "fclass.s");
                                 self.debug(inst, "fclass.s");
 
-                                let f = self.fregs.read(rs1);
+                                let f = self.fregs.read_nanboxed(rs1);
                                 match f.classify() {
                                     FpCategory::Infinite => {
                                         self.xregs
